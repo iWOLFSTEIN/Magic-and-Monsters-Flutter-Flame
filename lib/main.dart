@@ -1,10 +1,10 @@
+import 'package:flame/components.dart' as C;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -15,11 +15,11 @@ void main() {
   );
 }
 
-enum LighteningMageState { idle, running }
+enum LighteningMageState { idle, running, jump }
 
 enum ButtonStates { up, down, left, right }
 
-class MyGame extends FlameGame with HasTappables {
+class MyGame extends FlameGame with HasDraggables {
   final background = SpriteComponent();
   late SpriteAnimationGroupComponent<LighteningMageState> lighteningMage;
   bool isPlayerFlipped = false;
@@ -28,8 +28,6 @@ class MyGame extends FlameGame with HasTappables {
   late Button down;
   late Button left;
   late Button right;
-
-  late SpriteGroupComponent<ButtonStates> buttons;
 
   @override
   Future<void> onLoad() async {
@@ -46,11 +44,14 @@ class MyGame extends FlameGame with HasTappables {
         await images.load('lm_idle.png'), spriteData);
     final running = SpriteAnimation.fromFrameData(
         await images.load('lm_run.png'), spriteData);
+    final jump = SpriteAnimation.fromFrameData(
+        await images.load('lm_jump.png'), spriteData);
 
     lighteningMage = SpriteAnimationGroupComponent<LighteningMageState>(
         animations: {
           LighteningMageState.idle: idle,
-          LighteningMageState.running: running
+          LighteningMageState.running: running,
+          LighteningMageState.jump: jump
         },
         current: LighteningMageState.idle,
         size: spriteSize,
@@ -86,64 +87,75 @@ class MyGame extends FlameGame with HasTappables {
   void update(double dt) {
     // TODO: implement update
     super.update(dt);
+    if (lighteningMage.y < (size[1] / 1.3) + 7) {
+      lighteningMage.y += 100 * dt;
+    }
     if (lighteningMage.current == LighteningMageState.running) {
-      if (isPlayerFlipped
-          //  && !isPlayerJumped
-          ) {
-        lighteningMage.x -= 130 * dt;
-      } else if (!isPlayerFlipped
-          //  && !isPlayerJumped
-          ) {
-        lighteningMage.x += 130 * dt;
-      }
-      // if (isPlayerJumped) {
-      //   lighteningMage.y = lighteningMage.y - 20;
-      //   Future.delayed(const Duration(milliseconds: 200), () {
-      //     lighteningMage.y = lighteningMage.y + 20;
-      //     isPlayerJumped = false;
-      //   });
-      // }
+      playerRunning(dt);
+    } else if (isPlayerJumped) {
+      lighteningMage.y = lighteningMage.y - 100;
+      isPlayerJumped = false;
     }
   }
 
-  // @override
-  // void onDragEnd(int pointerId, DragEndInfo info) {
-  //   // TODO: implement onDragEnd
-  //   super.onDragEnd(pointerId, info);
-  //   lighteningMage.current = LighteningMageState.idle;
-  // }
+  playerRunning(double dt) {
+    lighteningMage.current == LighteningMageState.running;
+    if (isPlayerFlipped) {
+      lighteningMage.x -= 130 * dt;
+    } else if (!isPlayerFlipped) {
+      lighteningMage.x += 130 * dt;
+    }
+  }
 
-  // @override
-  // void onDragUpdate(int pointerId, DragUpdateInfo info) {
-  //   // TODO: implement onDragUpdate
-  //   super.onDragUpdate(pointerId, info);
-  //   if (info.delta.game.x > 0) {
-  //     if (isPlayerFlipped) {
-  //       isPlayerFlipped = false;
-  //       lighteningMage.flipHorizontally();
-  //     }
-  //     lighteningMage.current = LighteningMageState.running;
-  //   } else if (info.delta.game.x < 0) {
-  //     if (!isPlayerFlipped) {
-  //       isPlayerFlipped = true;
-  //       lighteningMage.flipHorizontally();
-  //     }
+  @override
+  void onDragStart(int pointerId, DragStartInfo info) {
+    // TODO: implement onDragStart
+    super.onDragStart(pointerId, info);
+    if (right.state) {
+      if (isPlayerFlipped) {
+        isPlayerFlipped = false;
+        lighteningMage.flipHorizontally();
+      }
+      lighteningMage.current = LighteningMageState.running;
+    } else if (left.state) {
+      if (!isPlayerFlipped) {
+        isPlayerFlipped = true;
+        lighteningMage.flipHorizontally();
+      }
 
-  //     lighteningMage.current = LighteningMageState.running;
-  //   } else if (info.delta.game.y < 0) {
-  //     if (!isPlayerJumped) {
-  //       isPlayerJumped = true;
-  //     }
-  //   }
-  // }
+      lighteningMage.current = LighteningMageState.running;
+    } else if (up.state) {
+      if (!isPlayerJumped && lighteningMage.y >= (size[1] / 1.3) + 7) {
+        lighteningMage.current = LighteningMageState.jump;
+        isPlayerJumped = true;
+      }
+    }
+  }
+
+  @override
+  void onDragEnd(int pointerId, DragEndInfo info) {
+    // TODO: implement onDragEnd
+    super.onDragEnd(pointerId, info);
+    if (lighteningMage.current == LighteningMageState.jump) {
+      lighteningMage.animation!.loop = false;
+
+      lighteningMage.animation!.onComplete = () {
+        lighteningMage.animation!.reset();
+        lighteningMage.current = LighteningMageState.idle;
+      };
+    } else {
+      lighteningMage.current = LighteningMageState.idle;
+    }
+  }
 }
 
-class Button extends SpriteComponent with Tappable {
+class Button extends SpriteComponent with C.Draggable {
   Button({required this.button, this.marginLeft, this.marginTop})
       : super(size: Vector2.all(16));
   final String button;
   double? marginLeft;
   double? marginTop;
+  bool state = false;
   @override
   Future<void> onLoad() async {
     sprite = await Sprite.load(button);
@@ -152,16 +164,16 @@ class Button extends SpriteComponent with Tappable {
   }
 
   @override
-  bool onLongTapDown(TapDownInfo info) {
-    // TODO: implement onLongTapDown
-    print('something');
-    return super.onLongTapDown(info);
+  bool onDragStart(DragStartInfo info) {
+    // TODO: implement onDragStart
+    state = true;
+    return super.onDragStart(info);
   }
 
   @override
-  bool onTapDown(TapDownInfo info) {
-    // TODO: implement onTapDown
-    print('something');
-    return super.onTapDown(info);
+  bool onDragEnd(DragEndInfo info) {
+    // TODO: implement onDragEnd
+    state = false;
+    return super.onDragEnd(info);
   }
 }
