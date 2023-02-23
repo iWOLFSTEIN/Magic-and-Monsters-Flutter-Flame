@@ -1,11 +1,9 @@
-import 'package:flame/components.dart' as C;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame/experimental.dart';
 import 'package:flame/game.dart';
-import 'package:flame/sprite.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_game/buttons.dart';
 
 void main() {
   runApp(
@@ -146,34 +144,5 @@ class MyGame extends FlameGame with HasDraggables {
     } else {
       lighteningMage.current = LighteningMageState.idle;
     }
-  }
-}
-
-class Button extends SpriteComponent with C.Draggable {
-  Button({required this.button, this.marginLeft, this.marginTop})
-      : super(size: Vector2.all(16));
-  final String button;
-  double? marginLeft;
-  double? marginTop;
-  bool state = false;
-  @override
-  Future<void> onLoad() async {
-    sprite = await Sprite.load(button);
-    size = Vector2(50, 50);
-    position = Vector2(marginLeft ?? 0, marginTop ?? 0);
-  }
-
-  @override
-  bool onDragStart(DragStartInfo info) {
-    // TODO: implement onDragStart
-    state = true;
-    return super.onDragStart(info);
-  }
-
-  @override
-  bool onDragEnd(DragEndInfo info) {
-    // TODO: implement onDragEnd
-    state = false;
-    return super.onDragEnd(info);
   }
 }
