@@ -13,7 +13,14 @@ void main() {
   );
 }
 
-enum LighteningMageState { idle, running, jump }
+enum LighteningMageState {
+  idle,
+  running,
+  jump,
+  attack,
+  lightCharge,
+  charge,
+}
 
 enum ButtonStates { up, down, left, right }
 
@@ -26,6 +33,9 @@ class MyGame extends FlameGame with HasDraggables {
   late Button down;
   late Button left;
   late Button right;
+  late Button attackBt;
+  late Button lightChargeBt;
+  late SpriteAnimationGroupComponent<LighteningMageState> lighteningCharge;
 
   @override
   Future<void> onLoad() async {
@@ -37,6 +47,10 @@ class MyGame extends FlameGame with HasDraggables {
     var spriteSize = Vector2(128, 128);
     SpriteAnimationData spriteData = SpriteAnimationData.sequenced(
         amount: 7, stepTime: 0.1, textureSize: spriteSize);
+    final attackSpriteData = SpriteAnimationData.sequenced(
+        amount: 10, stepTime: 0.1, textureSize: spriteSize);
+    final lightChargeSpriteData = SpriteAnimationData.sequenced(
+        amount: 9, stepTime: 0.1, textureSize: spriteSize);
 
     final idle = SpriteAnimation.fromFrameData(
         await images.load('lm_idle.png'), spriteData);
@@ -44,41 +58,90 @@ class MyGame extends FlameGame with HasDraggables {
         await images.load('lm_run.png'), spriteData);
     final jump = SpriteAnimation.fromFrameData(
         await images.load('lm_jump.png'), spriteData);
+    final attack = SpriteAnimation.fromFrameData(
+      await images.load('lm_attack.png'),
+      attackSpriteData,
+    );
+    final lightCharge = SpriteAnimation.fromFrameData(
+      await images.load('lm_light_ball.png'),
+      spriteData,
+    );
+    final charge = SpriteAnimation.fromFrameData(
+      await images.load('charge.png'),
+      lightChargeSpriteData,
+    );
+
+    lighteningCharge = SpriteAnimationGroupComponent<LighteningMageState>(
+        animations: {
+          LighteningMageState.charge: charge,
+        },
+        current: LighteningMageState.idle,
+        size: spriteSize,
+        anchor: Anchor.center,
+        position: Vector2(200, (size[1] / 1.3) + 7));
 
     lighteningMage = SpriteAnimationGroupComponent<LighteningMageState>(
         animations: {
           LighteningMageState.idle: idle,
           LighteningMageState.running: running,
-          LighteningMageState.jump: jump
+          LighteningMageState.jump: jump,
+          LighteningMageState.attack: attack,
+          LighteningMageState.lightCharge: lightCharge
         },
         current: LighteningMageState.idle,
         size: spriteSize,
         anchor: Anchor.center,
-        position: Vector2(100, (size[1] / 1.3) + 7));
+        position: Vector2(200, (size[1] / 1.3) + 7));
 
     add(lighteningMage);
 
-    up = Button(
-        button: 'arrow-up.png',
-        marginLeft: size[0] - 110,
-        marginTop: size[1] - 135);
-    down = Button(
-        button: 'arrow-down.png',
-        marginLeft: size[0] - 110,
-        marginTop: size[1] - 70);
-    left = Button(
-        button: 'arrow-left.png',
-        marginLeft: size[0] - 145,
-        marginTop: size[1] - 100);
-    right = Button(
-        button: 'arrow-right.png',
-        marginLeft: size[0] - 75,
-        marginTop: size[1] - 100);
+    directionControlButtons();
 
     add(up);
     add(down);
     add(left);
     add(right);
+    add(attackBt);
+    add(lightChargeBt);
+    add(lighteningCharge);
+  }
+
+  directionControlButtons() {
+    up = Button(
+        button: 'arrow-up.png',
+        marginLeft:
+            //  size[0] - 110,
+            80,
+        marginTop: size[1] - 145);
+    down = Button(
+        button: 'arrow-down.png',
+        marginLeft:
+            //  size[0] - 110,
+            80,
+        marginTop: size[1] - 80);
+    left = Button(
+        button: 'arrow-left.png',
+        marginLeft:
+            //  size[0] -145,
+            45,
+        marginTop: size[1] - 110);
+    right = Button(
+        button: 'arrow-right.png',
+        marginLeft:
+            //  size[0] - 75,
+            115,
+        marginTop: size[1] - 110);
+
+    attackBt = Button(
+        button: 'attack.png',
+        sSize: 25,
+        marginLeft: size[0] - 110,
+        marginTop: size[1] - 145);
+    lightChargeBt = Button(
+        button: 'bolt.png',
+        sSize: 25,
+        marginLeft: size[0] - 145,
+        marginTop: size[1] - 110);
   }
 
   @override
@@ -91,9 +154,12 @@ class MyGame extends FlameGame with HasDraggables {
     if (lighteningMage.current == LighteningMageState.running) {
       playerRunning(dt);
     } else if (isPlayerJumped) {
-      lighteningMage.y = lighteningMage.y - 100;
+      lighteningMage.y = lighteningMage.y - 100 * 50 * dt;
       isPlayerJumped = false;
     }
+    // else if (lighteningMage.current == LighteningMageState.lightCharge) {
+    //   lighteningMage.x += 20 * dt;
+    // }
   }
 
   playerRunning(double dt) {
@@ -113,12 +179,14 @@ class MyGame extends FlameGame with HasDraggables {
       if (isPlayerFlipped) {
         isPlayerFlipped = false;
         lighteningMage.flipHorizontally();
+        lighteningCharge.flipHorizontally();
       }
       lighteningMage.current = LighteningMageState.running;
     } else if (left.state) {
       if (!isPlayerFlipped) {
         isPlayerFlipped = true;
         lighteningMage.flipHorizontally();
+        lighteningCharge.flipHorizontally();
       }
 
       lighteningMage.current = LighteningMageState.running;
@@ -127,6 +195,15 @@ class MyGame extends FlameGame with HasDraggables {
         lighteningMage.current = LighteningMageState.jump;
         isPlayerJumped = true;
       }
+    } else if (attackBt.state) {
+      lighteningMage.current = LighteningMageState.attack;
+    } else if (lightChargeBt.state) {
+      lighteningMage.current = LighteningMageState.lightCharge;
+      // try {
+      //   lighteningMage.current = null;
+      // } catch (e) {
+      //   print(e.toString());
+      // }
     }
   }
 
@@ -134,15 +211,34 @@ class MyGame extends FlameGame with HasDraggables {
   void onDragEnd(int pointerId, DragEndInfo info) {
     // TODO: implement onDragEnd
     super.onDragEnd(pointerId, info);
-    if (lighteningMage.current == LighteningMageState.jump) {
-      lighteningMage.animation!.loop = false;
+    if (lighteningMage.current != LighteningMageState.running) {
+      if (lighteningMage.current != LighteningMageState.lightCharge) {
+        animationWait(lighteningMage, LighteningMageState.idle);
+      } else {
+        animationWait(lighteningMage, LighteningMageState.idle);
+        // lighteningCharge.x = lighteningMage.x + 70;
+        lighteningCharge.y = lighteningMage.y + 45;
+        if (isPlayerFlipped) {
+          lighteningCharge.x = lighteningMage.x - 70;
+        } else {
+          lighteningCharge.x = lighteningMage.x + 70;
+        }
 
-      lighteningMage.animation!.onComplete = () {
-        lighteningMage.animation!.reset();
-        lighteningMage.current = LighteningMageState.idle;
-      };
+        lighteningCharge.current = LighteningMageState.charge;
+        animationWait(lighteningCharge, null);
+      }
     } else {
       lighteningMage.current = LighteningMageState.idle;
     }
+  }
+
+  animationWait(
+      SpriteAnimationGroupComponent animationId, LighteningMageState? state) {
+    animationId.animation!.loop = false;
+    animationId.animation!.onComplete = () {
+      animationId.animation!.reset();
+
+      animationId.current = state;
+    };
   }
 }
