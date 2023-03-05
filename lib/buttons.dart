@@ -1,8 +1,7 @@
-import 'package:flame/components.dart' as C;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 
-class Button extends SpriteComponent with C.Draggable {
+class Button extends SpriteComponent with Draggable {
   Button(
       {required this.button, this.marginLeft, this.marginTop, this.sSize = 40})
       : super(size: Vector2.all(16));

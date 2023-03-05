@@ -13,29 +13,31 @@ void main() {
   );
 }
 
-enum LighteningMageState {
+enum WanderingWizardStates {
   idle,
   running,
-  jump,
-  attack,
-  lightCharge,
-  charge,
+  jumping,
+  arrowAttack,
+  fireAttack,
+  arrow,
+  fire,
 }
 
 enum ButtonStates { up, down, left, right }
 
 class MyGame extends FlameGame with HasDraggables {
   final background = SpriteComponent();
-  late SpriteAnimationGroupComponent<LighteningMageState> lighteningMage;
+  late SpriteAnimationGroupComponent<WanderingWizardStates> wanderingWizard;
   bool isPlayerFlipped = false;
   bool isPlayerJumped = false;
   late Button up;
   late Button down;
   late Button left;
   late Button right;
-  late Button attackBt;
-  late Button lightChargeBt;
-  late SpriteAnimationGroupComponent<LighteningMageState> lighteningCharge;
+  late Button arrowAttackBt;
+  late Button fireAttackBt;
+  late SpriteAnimationGroupComponent<WanderingWizardStates> fireAnimation;
+  late SpriteAnimationGroupComponent<WanderingWizardStates> arrowAnimation;
 
   @override
   Future<void> onLoad() async {
@@ -47,53 +49,71 @@ class MyGame extends FlameGame with HasDraggables {
     var spriteSize = Vector2(128, 128);
     SpriteAnimationData spriteData = SpriteAnimationData.sequenced(
         amount: 7, stepTime: 0.1, textureSize: spriteSize);
-    final attackSpriteData = SpriteAnimationData.sequenced(
-        amount: 10, stepTime: 0.1, textureSize: spriteSize);
-    final lightChargeSpriteData = SpriteAnimationData.sequenced(
-        amount: 9, stepTime: 0.1, textureSize: spriteSize);
+    final arrowAttackSpriteData = SpriteAnimationData.sequenced(
+        amount: 6, stepTime: 0.1, textureSize: spriteSize);
+    final fireAttackSpriteData = SpriteAnimationData.sequenced(
+      amount: 9,
+      stepTime: 0.1,
+      textureSize: spriteSize,
+    );
 
     final idle = SpriteAnimation.fromFrameData(
-        await images.load('lm_idle.png'), spriteData);
+        await images.load('wm_idle.png'), spriteData);
     final running = SpriteAnimation.fromFrameData(
-        await images.load('lm_run.png'), spriteData);
-    final jump = SpriteAnimation.fromFrameData(
-        await images.load('lm_jump.png'), spriteData);
-    final attack = SpriteAnimation.fromFrameData(
-      await images.load('lm_attack.png'),
-      attackSpriteData,
+        await images.load('wm_running.png'), spriteData);
+    final jumping = SpriteAnimation.fromFrameData(
+        await images.load('wm_jumping.png'), spriteData);
+
+    final arrowAttack = SpriteAnimation.fromFrameData(
+      await images.load('wm_arrow_attack.png'),
+      arrowAttackSpriteData,
     );
-    final lightCharge = SpriteAnimation.fromFrameData(
-      await images.load('lm_light_ball.png'),
+
+    final fireAttack = SpriteAnimation.fromFrameData(
+      await images.load('wm_fire_attack.png'),
+      fireAttackSpriteData,
+    );
+    final fire = SpriteAnimation.fromFrameData(
+      await images.load('fire.png'),
       spriteData,
     );
-    final charge = SpriteAnimation.fromFrameData(
-      await images.load('charge.png'),
-      lightChargeSpriteData,
+    final arrow = SpriteAnimation.fromFrameData(
+      await images.load('arrow.png'),
+      arrowAttackSpriteData,
     );
 
-    lighteningCharge = SpriteAnimationGroupComponent<LighteningMageState>(
+    fireAnimation = SpriteAnimationGroupComponent<WanderingWizardStates>(
         animations: {
-          LighteningMageState.charge: charge,
+          WanderingWizardStates.fire: fire,
         },
-        current: LighteningMageState.idle,
+        current: null,
         size: spriteSize,
         anchor: Anchor.center,
         position: Vector2(200, (size[1] / 1.3) + 7));
 
-    lighteningMage = SpriteAnimationGroupComponent<LighteningMageState>(
+    arrowAnimation = SpriteAnimationGroupComponent<WanderingWizardStates>(
         animations: {
-          LighteningMageState.idle: idle,
-          LighteningMageState.running: running,
-          LighteningMageState.jump: jump,
-          LighteningMageState.attack: attack,
-          LighteningMageState.lightCharge: lightCharge
+          WanderingWizardStates.arrow: arrow,
         },
-        current: LighteningMageState.idle,
+        current: null,
         size: spriteSize,
         anchor: Anchor.center,
         position: Vector2(200, (size[1] / 1.3) + 7));
 
-    add(lighteningMage);
+    wanderingWizard = SpriteAnimationGroupComponent<WanderingWizardStates>(
+        animations: {
+          WanderingWizardStates.idle: idle,
+          WanderingWizardStates.running: running,
+          WanderingWizardStates.jumping: jumping,
+          WanderingWizardStates.arrowAttack: arrowAttack,
+          WanderingWizardStates.fireAttack: fireAttack,
+        },
+        current: WanderingWizardStates.idle,
+        size: spriteSize,
+        anchor: Anchor.center,
+        position: Vector2(200, (size[1] / 1.3) + 7));
+
+    add(wanderingWizard);
 
     directionControlButtons();
 
@@ -101,9 +121,10 @@ class MyGame extends FlameGame with HasDraggables {
     add(down);
     add(left);
     add(right);
-    add(attackBt);
-    add(lightChargeBt);
-    add(lighteningCharge);
+    add(arrowAttackBt);
+    add(fireAttackBt);
+
+    add(fireAnimation);
   }
 
   directionControlButtons() {
@@ -132,13 +153,13 @@ class MyGame extends FlameGame with HasDraggables {
             115,
         marginTop: size[1] - 110);
 
-    attackBt = Button(
-        button: 'attack.png',
+    arrowAttackBt = Button(
+        button: 'arrow_attack_icon.png',
         sSize: 25,
         marginLeft: size[0] - 110,
         marginTop: size[1] - 145);
-    lightChargeBt = Button(
-        button: 'bolt.png',
+    fireAttackBt = Button(
+        button: 'fire_attack_icon.png',
         sSize: 25,
         marginLeft: size[0] - 145,
         marginTop: size[1] - 110);
@@ -148,26 +169,23 @@ class MyGame extends FlameGame with HasDraggables {
   void update(double dt) {
     // TODO: implement update
     super.update(dt);
-    if (lighteningMage.y < (size[1] / 1.3) + 7) {
-      lighteningMage.y += 100 * dt;
+    if (wanderingWizard.y < (size[1] / 1.3) + 7) {
+      wanderingWizard.y += 100 * dt;
     }
-    if (lighteningMage.current == LighteningMageState.running) {
+    if (wanderingWizard.current == WanderingWizardStates.running) {
       playerRunning(dt);
     } else if (isPlayerJumped) {
-      lighteningMage.y = lighteningMage.y - 100 * 50 * dt;
+      wanderingWizard.y = wanderingWizard.y - 100 * 50 * dt;
       isPlayerJumped = false;
     }
-    // else if (lighteningMage.current == LighteningMageState.lightCharge) {
-    //   lighteningMage.x += 20 * dt;
-    // }
   }
 
   playerRunning(double dt) {
-    lighteningMage.current == LighteningMageState.running;
+    wanderingWizard.current == WanderingWizardStates.running;
     if (isPlayerFlipped) {
-      lighteningMage.x -= 130 * dt;
+      wanderingWizard.x -= 130 * dt;
     } else if (!isPlayerFlipped) {
-      lighteningMage.x += 130 * dt;
+      wanderingWizard.x += 130 * dt;
     }
   }
 
@@ -178,32 +196,27 @@ class MyGame extends FlameGame with HasDraggables {
     if (right.state) {
       if (isPlayerFlipped) {
         isPlayerFlipped = false;
-        lighteningMage.flipHorizontally();
-        lighteningCharge.flipHorizontally();
+        wanderingWizard.flipHorizontally();
+        fireAnimation.flipHorizontally();
       }
-      lighteningMage.current = LighteningMageState.running;
+      wanderingWizard.current = WanderingWizardStates.running;
     } else if (left.state) {
       if (!isPlayerFlipped) {
         isPlayerFlipped = true;
-        lighteningMage.flipHorizontally();
-        lighteningCharge.flipHorizontally();
+        wanderingWizard.flipHorizontally();
+        fireAnimation.flipHorizontally();
       }
 
-      lighteningMage.current = LighteningMageState.running;
+      wanderingWizard.current = WanderingWizardStates.running;
     } else if (up.state) {
-      if (!isPlayerJumped && lighteningMage.y >= (size[1] / 1.3) + 7) {
-        lighteningMage.current = LighteningMageState.jump;
+      if (!isPlayerJumped && wanderingWizard.y >= (size[1] / 1.3) + 7) {
+        wanderingWizard.current = WanderingWizardStates.jumping;
         isPlayerJumped = true;
       }
-    } else if (attackBt.state) {
-      lighteningMage.current = LighteningMageState.attack;
-    } else if (lightChargeBt.state) {
-      lighteningMage.current = LighteningMageState.lightCharge;
-      // try {
-      //   lighteningMage.current = null;
-      // } catch (e) {
-      //   print(e.toString());
-      // }
+    } else if (arrowAttackBt.state) {
+      wanderingWizard.current = WanderingWizardStates.arrowAttack;
+    } else if (fireAttackBt.state) {
+      wanderingWizard.current = WanderingWizardStates.fireAttack;
     }
   }
 
@@ -211,29 +224,34 @@ class MyGame extends FlameGame with HasDraggables {
   void onDragEnd(int pointerId, DragEndInfo info) {
     // TODO: implement onDragEnd
     super.onDragEnd(pointerId, info);
-    if (lighteningMage.current != LighteningMageState.running) {
-      if (lighteningMage.current != LighteningMageState.lightCharge) {
-        animationWait(lighteningMage, LighteningMageState.idle);
+    if (wanderingWizard.current != WanderingWizardStates.running) {
+      if (wanderingWizard.current == WanderingWizardStates.fireAttack) {
+        attacksAnimations(fireAnimation, WanderingWizardStates.fire);
+      } else if (wanderingWizard.current == WanderingWizardStates.arrowAttack) {
+        attacksAnimations(arrowAnimation, WanderingWizardStates.arrow);
       } else {
-        animationWait(lighteningMage, LighteningMageState.idle);
-        // lighteningCharge.x = lighteningMage.x + 70;
-        lighteningCharge.y = lighteningMage.y + 45;
-        if (isPlayerFlipped) {
-          lighteningCharge.x = lighteningMage.x - 70;
-        } else {
-          lighteningCharge.x = lighteningMage.x + 70;
-        }
-
-        lighteningCharge.current = LighteningMageState.charge;
-        animationWait(lighteningCharge, null);
+        animationWait(wanderingWizard, WanderingWizardStates.idle);
       }
     } else {
-      lighteningMage.current = LighteningMageState.idle;
+      wanderingWizard.current = WanderingWizardStates.idle;
     }
   }
 
+  attacksAnimations(animation, current) {
+    animationWait(wanderingWizard, WanderingWizardStates.idle);
+    animation.y = wanderingWizard.y + 25;
+    if (isPlayerFlipped) {
+      animation.x = wanderingWizard.x - 70;
+    } else {
+      animation.x = wanderingWizard.x + 70;
+    }
+
+    animation.current = current;
+    animationWait(animation, null);
+  }
+
   animationWait(
-      SpriteAnimationGroupComponent animationId, LighteningMageState? state) {
+      SpriteAnimationGroupComponent animationId, WanderingWizardStates? state) {
     animationId.animation!.loop = false;
     animationId.animation!.onComplete = () {
       animationId.animation!.reset();
